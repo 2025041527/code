@@ -53,7 +53,7 @@
 /* USER CODE BEGIN PV */
 float Velocity_Filtered = 0.0f; 
 float Angle_Filtered = 0.0f;    
-float omega = 5.0f;
+float omega =6.25f;
 float VelocityRef;
 float Velocity;
 float Angle;
@@ -78,7 +78,7 @@ uint32_t DWT_CNT;
 float dt;
 float t;
 float Input;
-int CONTROL_MODE = 2;
+int CONTROL_MODE =2;
 float disturb = 0.0f;
 /* USER CODE END PV */
 
@@ -92,20 +92,15 @@ float LowPassFilter(float input, float prev_output, float alpha);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float LowPassFilter(float input, float prev_output, float alpha)
-{
-    if (alpha < 0.0f || alpha > 1.0f) alpha = 0.2f; 
-    return alpha * input + (1.0f - alpha) * prev_output;
-}
 void PID_Init(pid_t *p)
 {
     if (!p) return;
-    p->kp1 = 50.0f;
-    p->kp2 = 50.0f;
+    p->kp1 =10.0f;
+    p->kp2 = 10.0f;
     p->ki1 = 0.1f;
     p->ki2 = 0.1f;
-    p->kd1 = 0.0f;
-    p->kd2 = 0.0f;
+    p->kd1 = 0.01f;
+    p->kd2 = 0.01f;
     p->integral = 0.0f;
     p->prev_error = 0.0f;
 	  p->error = 0.0f;
@@ -171,8 +166,6 @@ int main(void)
   DWT_Init(72);
   Motor_Object_Init(&Motor);
   PID_Init(&PID);
-	Velocity_Filtered = Get_Motor_Velocity(&Motor);
-  Angle_Filtered = Get_Motor_Angle(&Motor);
   /* USER CODE END 2 */
 
 while (1)
@@ -181,19 +174,16 @@ while (1)
       t += dt;
       PID.Current = Get_Motor_Current(&Motor);
       Velocity = Get_Motor_Velocity(&Motor);
-      Angle = Get_Motor_Angle(&Motor) ;
-		  Velocity_Filtered = LowPassFilter(Velocity, Velocity_Filtered, LOW_PASS_ALPHA);
-      Angle_Filtered = LowPassFilter(Angle, Angle_Filtered, LOW_PASS_ALPHA);
+		  Angle = Get_Motor_Angle(&Motor) ;
       if (CONTROL_MODE == 1)
-      { AngleRef = 0.0f;
-        Input = PID_Calculate1(AngleRef, dt, &PID, Angle_Filtered);
+      { VelocityRef = ANGLE_REF_STEP * sin(omega * t);
+         Input = PID_Calculate1(VelocityRef, dt, &PID, Velocity);
       }
       else if (CONTROL_MODE == 2)
       {
-        AngleRef = 0.0f;
-        VelocityRef = PID_Calculate1(AngleRef, dt, &PID, Angle_Filtered);
-        float Velocity_FF = VELOCITY_FF_K * VelocityRef;
-        Input = PID_Calculate2(VelocityRef, dt, &PID, Velocity_Filtered) + Velocity_FF;
+        AngleRef = ANGLE_REF_STEP * sin(omega * t);
+        VelocityRef = PID_Calculate1(AngleRef, dt, &PID, Angle);
+        Input = PID_Calculate2(VelocityRef, dt, &PID, Velocity);
       }
       
       Motor_Simulation(&Motor,Input, dt);
